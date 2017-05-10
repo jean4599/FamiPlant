@@ -1,10 +1,10 @@
 var awsIot = require('aws-iot-device-sdk');
 
 var device = awsIot.device({
-  keyPath: 'PATH_TO_YOUR_KEY_FILE.key',
-  certPath: 'PATH_TO_YOUR_CERTIFICATE_PEM_FILE.crt',
-  caPath: 'PATH_TO_ROOT_CA_FILE.pem',
-  host: "IOT_DEVICE_URL",
+  keyPath: './certs/private.pem.key',
+  certPath: './certs/certificate.pem.crt',
+  caPath: './certs/rootCA.pem',
+  host: "a2fjaggbyc4pmi.iot.us-east-2.amazonaws.com",
   port: 8883,
   clientId: "raspi-data-publisher",
   region: 'us-east-1'
@@ -16,7 +16,7 @@ var device = awsIot.device({
 //
 device.on('connect', function() {
   console.log('connect');
-  device.subscribe('raspi-water-pump/data');
+  device.subscribe('sensor/data/2');
 });
 
 module.exports.device = device

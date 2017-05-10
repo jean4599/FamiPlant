@@ -7,8 +7,6 @@ var raspi     = require('raspi-io'),
 
 var ioPi = new raspi();
 var waterLevelValue, soilValue, lcd, temperature, humidity;
-// 11 is dht11, 4 is pi gpio pin
-// sensorLib.initialize(11, 4);
 
 var tempSensor = {
   initialize: function() {
@@ -27,25 +25,9 @@ var tempSensor = {
   }
 }
 
-var lcdScreen = {
-  initialize: function(lcd) {
-    this.lcdVal = lcd;
-  },
-  update: function() {
-    setInterval(function(){
-      lcdScreen.lcdVal.clear();
-      printWaterAndSoil(lcdScreen.lcdVal);
-      setTimeout(function(){
-        lcdScreen.lcdVal.clear();
-        printTempAndHumidity(lcdScreen.lcdVal);
-      }, 2000)
-    }, 4000)
-  }
-}
-
 var boards = new five.Boards([
   {id: 'pi', io: ioPi, debug: true },
-  {id: 'uno', port: "/dev/ttyACM0", debug: true }
+  {id: 'uno', port: "/dev/ttyUSB0", debug: true }
 ]);
 
 boards.on("ready", function() {
@@ -55,12 +37,6 @@ boards.on("ready", function() {
   } else {
     console.warn('Failed to initialize sensor');
   }
-
-  // initialize lcd screen to print debug info
-  lcd = new five.LCD({ 
-    controller: "LCM1602",
-    board: this.byId('pi')
-  });
 
   // test purpose | blink led on uno
   var led = new five.Led({
@@ -77,7 +53,7 @@ boards.on("ready", function() {
   waterLevelSensor.on("data", function() {
     if(waterPower.isHigh) {
       waterLevelValue = this.value;
-      console.log('water lev: '+this.value);
+      //console.log('water lev: '+this.value);
     }
   });
 
@@ -88,11 +64,12 @@ boards.on("ready", function() {
   soilMoisture.on("data", function() {
     if (power.isHigh) {
       soilValue = this.value;
-      console.log('soil lev: '+this.value);
+      //console.log('soil lev: '+this.value);
     }
   });
 
-  this.byId("uno").loop(15000, function() {
+  var uno = this.byId("uno")
+  uno.loop(15000, ()=> {
     if (!power.isHigh) {
       power.high();
       soilMoisture.enable();
@@ -102,7 +79,7 @@ boards.on("ready", function() {
       waterLevelSensor.enable();
     }
 
-    this.wait(500, function() {
+    uno.wait(500, function() {
       waterPower.low();
       waterLevelSensor.disable();
       power.low();
@@ -110,15 +87,13 @@ boards.on("ready", function() {
     });
   });
 
-  lcdScreen.initialize(lcd);
-  lcdScreen.update();
   awsUpdater();
 });
 
 awsDevice.device.on('message', function(topic, payload) {
   console.log('message', topic, payload.toString());
   payloadData = JSON.parse(payload);
-  if(payloadData['state']['pump'] == 'start') {
+  if(payloadData['sol'] >= 820) {
     waterPump.writeSync(1);
   } else {
     waterPump.writeSync(0);
@@ -126,20 +101,10 @@ awsDevice.device.on('message', function(topic, payload) {
 });
 
 
-printWaterAndSoil = function(lcd) {
-  lcd.home().print('water: ' + waterLevelValue)
-  lcd.cursor(1,0).print(' soil: ' + soilValue);
-},
-
-printTempAndHumidity = function(lcd) {
-  lcd.home().print('temp: ' + temperature);
-  lcd.cursor(1,0).print('hum: ' + humidity);
-}
-
 awsUpdater = function() {
   setInterval(function() {
     data = {'temp': parseFloat(temperature), 'hum': parseFloat(humidity), 'wat': parseFloat(waterLevelValue), 'sol': parseFloat(soilValue)}
-    awsDevice.device.publish('sensor/data', JSON.stringify(data));
+    awsDevice.device.publish('sensor/data/1', JSON.stringify(data));
   }, 20000);
 }
 
